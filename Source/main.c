@@ -1,18 +1,49 @@
-//  å»¶æ—¶
+
+#define	NVIC_INT_CTRL			0xE000Ed04 	// ÖĞ¶Ï¿ØÖÆ¼°×´Ì¬¼Ä´æÆ÷
+#define	NVIC_PENDSVSET		0x10000000 	// ´¥·¢Èí¼şÖĞ¶ÏµÄÖµ
+#define	NVIC_SYSPRI2			0xE000ED22 	// ÏµÍ³ÓÅÏÈ¼¶¼Ä´æÆ÷
+#define	NVIC_PENDSV_PRI		0x000000FF	// ÅäÖÃÓÅÏÈ¼¶
+
+#define MEM32(addr) (*(volatile unsigned long *)(addr))
+#define MEM8(addr)  (*(volatile unsigned char *)(addr))
+	
+typedef struct _BlockType_t
+{
+	unsigned long *stackPtr; // ¶ÑÕ»Ö¸Õë
+
+}BlockType_t;
+
+// ´¥·¢PendSVÒì³£
+void triggerPendSVC(void)
+{
+	MEM8(NVIC_SYSPRI2) = NVIC_PENDSV_PRI;
+	MEM32(NVIC_INT_CTRL) = NVIC_PENDSVSET;
+}
+
+// ÈíÑÓÊ±
 void delay(int count)
 {
 	while (--count);
 }
 
+// È«¾Ö±äÁ¿
 int flag;
-// ä¸»å‡½æ•°
+BlockType_t block;
+BlockType_t *blockPtr;
+unsigned long stackBuffer[1024]; // ¶ÑÕ»»º³åÇø
+
+// Ö÷º¯Êı
 int main()
 {
+	block.stackPtr = &stackBuffer[1024];
+	blockPtr = &block;
 	for (;;)
 	{
 		flag = 0; 
 		delay(100);
 		flag = 1;
 		delay(100);
+		
+		triggerPendSVC();
 	}
 }
