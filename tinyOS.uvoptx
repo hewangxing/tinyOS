@@ -139,9 +139,9 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>203</LineNumber>
+          <LineNumber>248</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>1392</Address>
+          <Address>1526</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -150,14 +150,14 @@
           <BreakIfRCount>1</BreakIfRCount>
           <Filename>.\Source\main.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\tinyOS\Source/main.c\203</Expression>
+          <Expression>\\tinyOS\Source/main.c\248</Expression>
         </Bp>
         <Bp>
           <Number>1</Number>
           <Type>0</Type>
-          <LineNumber>201</LineNumber>
+          <LineNumber>245</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>1374</Address>
+          <Address>1506</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -166,14 +166,14 @@
           <BreakIfRCount>1</BreakIfRCount>
           <Filename>.\Source\main.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\tinyOS\Source/main.c\201</Expression>
+          <Expression>\\tinyOS\Source/main.c\245</Expression>
         </Bp>
         <Bp>
           <Number>2</Number>
           <Type>0</Type>
-          <LineNumber>145</LineNumber>
+          <LineNumber>227</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>1302</Address>
+          <Address>1452</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -182,7 +182,23 @@
           <BreakIfRCount>1</BreakIfRCount>
           <Filename>.\Source\main.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\tinyOS\Source/main.c\145</Expression>
+          <Expression>\\tinyOS\Source/main.c\227</Expression>
+        </Bp>
+        <Bp>
+          <Number>3</Number>
+          <Type>0</Type>
+          <LineNumber>232</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>1474</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>.\Source\main.c</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\tinyOS\Source/main.c\232</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
@@ -225,6 +241,11 @@
           <count>7</count>
           <WinNumber>1</WinNumber>
           <ItemText>tickCounter</ItemText>
+        </Ww>
+        <Ww>
+          <count>8</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>shareCount</ItemText>
         </Ww>
       </WatchWindow1>
       <MemoryWindow1>

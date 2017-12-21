@@ -2,8 +2,8 @@
 FileName:     main.c
 Author:       hewangxing
 Date:         2017/12/21
-Description:  添加进出临界区的代码，有效避免了共享资源的访问冲突
-Version:      c3.01
+Description:  添加调度锁功能，调度器上锁时禁止任务切换
+Version:      c3.02
 ***********************************************************/
 
 #include "tinyOS.h"
@@ -13,7 +13,7 @@ Version:      c3.01
 tTask *currentTask;     // 指向当前任务
 tTask *nextTask;        // 指向下一个任务
 tTask *tTaskTable[3];   // 任务表
-uint32_t tickCounter;
+uint8_t schedLockCount;
 
 // 任务初始化
 void tTaskInit(tTask *task, void (*entry)(void *), void *param, tTaskStack *stack)
@@ -44,6 +44,13 @@ void tTaskSched(void)
 {
 	  
 	  uint32_t status = tEnterCritical();		  // 进入临界区
+	
+		if (schedLockCount > 0)
+		{
+			tExitCritical(status);								// 退出临界区
+			return;
+		}
+		
 		if (currentTask == tTaskTable[1])       // 当前任务为任务1
 		{
 			if (tTaskTable[2]->taskDelay == 0)
@@ -106,6 +113,40 @@ void tTaskSched(void)
 		tTaskSwitch();
 }
 
+// 调度器初始化
+void tTaskSchedInit(void)
+{
+	schedLockCount = 0;
+}
+
+// 调度锁上锁
+void tTaskSchedDisable(void)
+{
+	uint32_t status = tEnterCritical();		  // 进入临界区
+	
+	if (schedLockCount < 255)
+	{
+		schedLockCount++;
+	}
+	
+	tExitCritical(status);									// 退出临界区
+}
+
+// 调度锁解锁
+void tTaskSchedEnable(void)
+{
+	uint32_t status = tEnterCritical();		  // 进入临界区
+	
+	if (schedLockCount > 0)
+	{
+		schedLockCount--;
+		if(schedLockCount == 0)
+			tTaskSched();
+	}
+	
+	tExitCritical(status);									// 退出临界区
+}
+
 // 通过SysTick来设置os的时间片
 void tSetSysTickPeriod(uint32_t ms)
 {
@@ -142,7 +183,6 @@ void tTaskSystemTickHandler(void)
 			tTaskTable[i]->taskDelay--;
 		}
 	}
-	tickCounter++;
 	tExitCritical(status);		               // 退出临界区
 	
 	tTaskSched();
@@ -175,16 +215,23 @@ void delay(int count)
 	while (--count);
 }
 
+uint32_t shareCount;
 int task1flag;
 // 任务1
 void task1(void *param)
 {
 	for (;;)
 	{
+		uint32_t var = 0;
+		tTaskSchedDisable();         // 调度器上锁
+		var = shareCount;
 		task1flag = 0;
-		tTaskDelay(10);
+		tTaskDelay(1);
+		var++;
+		shareCount = var;
+		tTaskSchedEnable();          // 调度器解锁
 		task1flag = 1;
-		tTaskDelay(10);
+		tTaskDelay(1);
 	}
 }
 
@@ -193,20 +240,14 @@ int task2flag;
 void task2(void *param)
 {	
 	for (;;)
-	{
-		uint32_t i = 0;
-		
-		
-		uint32_t status = tEnterCritical();		 // 进入临界区
-		uint32_t counter = tickCounter;
-		for (i = 0; i < 0xFFFF; i++) {}
-		tickCounter = counter + 1;				
-		tExitCritical(status);                 // 退出临界区
-			
+	{	
+		tTaskSchedDisable();         // 调度器上锁
+    shareCount++;		
+		tTaskSchedEnable();          // 调度器解锁
 		task2flag = 0;
-		tTaskDelay(10);
+		tTaskDelay(1);
 		task2flag = 1;
-		tTaskDelay(10);
+		tTaskDelay(1);
 	}
 }
 
@@ -232,9 +273,10 @@ tTaskStack task2Env[1024];
 // 主函数
 int main()
 {
-	tTaskInit(&tIdleTask, idleTask, (void *)0x11111111, &idleTaskEnv[1024]);
-	tTaskInit(&tTask1, task1, (void *)0x22222222, &task1Env[1024]);
-	tTaskInit(&tTask2, task2, (void *)0x33333333, &task2Env[1024]);
+	tTaskSchedInit();						// 调度器初始化
+	tTaskInit(&tIdleTask, idleTask, (void *)0, &idleTaskEnv[1024]);
+	tTaskInit(&tTask1, task1, (void *)0x11111111, &task1Env[1024]);
+	tTaskInit(&tTask2, task2, (void *)0x22222222, &task2Env[1024]);
 		
 	tTaskTable[0] = &tIdleTask;
 	tTaskTable[1] = &tTask1;
