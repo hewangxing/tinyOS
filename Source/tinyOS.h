@@ -15,6 +15,10 @@ typedef struct _tTask
 extern tTask *currentTask;
 extern tTask *nextTask;
 
+
+uint32_t tEnterCritical(void);        // 进入临界区
+void tExitCritical(uint32_t status);  // 退出临界区
+
 void tTaskRunFirst(void);
 void tTaskSwitch(void);
 

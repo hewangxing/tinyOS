@@ -2,8 +2,8 @@
 FileName:     main.c
 Author:       hewangxing
 Date:         2017/12/21
-Description:  实现任务延时和空闲任务
-Version:      c2.04
+Description:  添加进出临界区的代码，有效避免了共享资源的访问冲突
+Version:      c3.01
 ***********************************************************/
 
 #include "tinyOS.h"
@@ -13,6 +13,7 @@ Version:      c2.04
 tTask *currentTask;     // 指向当前任务
 tTask *nextTask;        // 指向下一个任务
 tTask *tTaskTable[3];   // 任务表
+uint32_t tickCounter;
 
 // 任务初始化
 void tTaskInit(tTask *task, void (*entry)(void *), void *param, tTaskStack *stack)
@@ -41,6 +42,8 @@ void tTaskInit(tTask *task, void (*entry)(void *), void *param, tTaskStack *stac
 // 任务调度
 void tTaskSched(void)
 {
+	  
+	  uint32_t status = tEnterCritical();		  // 进入临界区
 		if (currentTask == tTaskTable[1])       // 当前任务为任务1
 		{
 			if (tTaskTable[2]->taskDelay == 0)
@@ -55,6 +58,8 @@ void tTaskSched(void)
 				}
 				else
 				{
+					
+					tExitCritical(status);						// 退出临界区
 					return;
 				}
 			}
@@ -73,11 +78,13 @@ void tTaskSched(void)
 				}
 				else
 				{
+					
+					tExitCritical(status);						// 退出临界区
 					return;
 				}
 			}
 		}
-		else 																	 // 当前任务为空闲任务
+		else 																 	  // 当前任务为空闲任务
 		{
 			if (tTaskTable[1]->taskDelay == 0)
 			{
@@ -89,10 +96,13 @@ void tTaskSched(void)
 			}
 			else
 			{
+				
+	      tExitCritical(status);							// 退出临界区
 				return;
 			}			
 		}
 		
+	  tExitCritical(status);									// 退出临界区
 		tTaskSwitch();
 }
 
@@ -110,7 +120,11 @@ void tSetSysTickPeriod(uint32_t ms)
 // 任务延时函数
 void tTaskDelay(uint32_t tick)
 {
+
+	uint32_t status = tEnterCritical();			 // 进入临界区
 	currentTask->taskDelay = tick;	
+	tExitCritical(status);									 // 退出临界区
+	
 	tTaskSched();
 }
 
@@ -118,6 +132,9 @@ void tTaskDelay(uint32_t tick)
 void tTaskSystemTickHandler(void)
 {
 	uint8_t i = 0;
+	
+	
+	uint32_t status = tEnterCritical();			 // 进入临界区
 	for (i = 0; i < 3; i++)
 	{
 		if (tTaskTable[i]->taskDelay > 0)
@@ -125,6 +142,9 @@ void tTaskSystemTickHandler(void)
 			tTaskTable[i]->taskDelay--;
 		}
 	}
+	tickCounter++;
+	tExitCritical(status);		               // 退出临界区
+	
 	tTaskSched();
 }
 
@@ -132,6 +152,21 @@ void tTaskSystemTickHandler(void)
 void SysTick_Handler(void)
 {
 	tTaskSystemTickHandler();
+}
+
+// 进入临界区
+uint32_t tEnterCritical(void)
+{
+	uint32_t primask = __get_PRIMASK();
+	__disable_irq();
+	
+	return primask;
+}
+
+// 退出临界区
+void tExitCritical(uint32_t status)
+{
+	__set_PRIMASK(status);
 }
 
 // 软延时
@@ -159,6 +194,15 @@ void task2(void *param)
 {	
 	for (;;)
 	{
+		uint32_t i = 0;
+		
+		
+		uint32_t status = tEnterCritical();		 // 进入临界区
+		uint32_t counter = tickCounter;
+		for (i = 0; i < 0xFFFF; i++) {}
+		tickCounter = counter + 1;				
+		tExitCritical(status);                 // 退出临界区
+			
 		task2flag = 0;
 		tTaskDelay(10);
 		task2flag = 1;
