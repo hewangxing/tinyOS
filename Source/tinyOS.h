@@ -7,7 +7,8 @@ typedef uint32_t tTaskStack;
 
 typedef struct _tTask
 {
-	tTaskStack *stack; // 堆栈指针
+	tTaskStack *stack;   // 堆栈指针
+	uint32_t taskDelay;	 // 计时器
 	
 }tTask;
 

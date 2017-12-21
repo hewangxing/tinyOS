@@ -2,8 +2,8 @@
 FileName:     main.c
 Author:       hewangxing
 Date:         2017/12/21
-Description:  实现基于时间片的双任务的切换
-Version:      c2.03
+Description:  实现任务延时和空闲任务
+Version:      c2.04
 ***********************************************************/
 
 #include "tinyOS.h"
@@ -12,7 +12,7 @@ Version:      c2.03
 // 全局变量
 tTask *currentTask;     // 指向当前任务
 tTask *nextTask;        // 指向下一个任务
-tTask *tTaskTable[2];   // 任务表
+tTask *tTaskTable[3];   // 任务表
 
 // 任务初始化
 void tTaskInit(tTask *task, void (*entry)(void *), void *param, tTaskStack *stack)
@@ -41,14 +41,58 @@ void tTaskInit(tTask *task, void (*entry)(void *), void *param, tTaskStack *stac
 // 任务调度
 void tTaskSched(void)
 {
-		if (currentTask == tTaskTable[0])
+		if (currentTask == tTaskTable[1])       // 当前任务为任务1
 		{
-			nextTask = tTaskTable[1];
+			if (tTaskTable[2]->taskDelay == 0)
+			{
+				nextTask = tTaskTable[2];
+			}
+			else
+			{
+				if (currentTask->taskDelay != 0)
+				{			
+					nextTask = tTaskTable[0];
+				}
+				else
+				{
+					return;
+				}
+			}
 		}
-		else
+		else if (currentTask == tTaskTable[2])	// 当前任务为任务2
 		{
-			nextTask = tTaskTable[0];
+			if (tTaskTable[1]->taskDelay == 0)
+			{
+				nextTask = tTaskTable[1];
+			}
+			else
+			{
+				if (currentTask->taskDelay != 0)
+				{
+					nextTask = tTaskTable[0];					
+				}
+				else
+				{
+					return;
+				}
+			}
 		}
+		else 																	 // 当前任务为空闲任务
+		{
+			if (tTaskTable[1]->taskDelay == 0)
+			{
+				nextTask = tTaskTable[1];
+			}
+			else if (tTaskTable[2]->taskDelay == 0)
+			{
+				nextTask = tTaskTable[2];
+			}
+			else
+			{
+				return;
+			}			
+		}
+		
 		tTaskSwitch();
 }
 
@@ -63,10 +107,31 @@ void tSetSysTickPeriod(uint32_t ms)
 									SysTick_CTRL_ENABLE_Msk;
 }
 
+// 任务延时函数
+void tTaskDelay(uint32_t tick)
+{
+	currentTask->taskDelay = tick;	
+	tTaskSched();
+}
+
+// 在SysTick中断中处理任务延时
+void tTaskSystemTickHandler(void)
+{
+	uint8_t i = 0;
+	for (i = 0; i < 3; i++)
+	{
+		if (tTaskTable[i]->taskDelay > 0)
+		{
+			tTaskTable[i]->taskDelay--;
+		}
+	}
+	tTaskSched();
+}
+
 // SysTick异常处理函数
 void SysTick_Handler(void)
 {
-	tTaskSched();
+	tTaskSystemTickHandler();
 }
 
 // 软延时
@@ -79,13 +144,12 @@ int task1flag;
 // 任务1
 void task1(void *param)
 {
-	tSetSysTickPeriod(10);
 	for (;;)
 	{
 		task1flag = 0;
-		delay(100);
+		tTaskDelay(10);
 		task1flag = 1;
-		delay(100);
+		tTaskDelay(10);
 	}
 }
 
@@ -96,9 +160,21 @@ void task2(void *param)
 	for (;;)
 	{
 		task2flag = 0;
-		delay(100);
+		tTaskDelay(10);
 		task2flag = 1;
-		delay(100);
+		tTaskDelay(10);
+	}
+}
+
+tTask tIdleTask;
+tTaskStack idleTaskEnv[1024];
+// 空闲任务
+void idleTask(void *param)
+{	
+	tSetSysTickPeriod(10);
+	for (;;)
+	{
+		
 	}
 }
 
@@ -112,11 +188,13 @@ tTaskStack task2Env[1024];
 // 主函数
 int main()
 {
-	tTaskInit(&tTask1, task1, (void *)0x11111111, &task1Env[1024]);
-	tTaskInit(&tTask2, task2, (void *)0x22222222, &task2Env[1024]);
-	
-	tTaskTable[0] = &tTask1;
-	tTaskTable[1] = &tTask2;
+	tTaskInit(&tIdleTask, idleTask, (void *)0x11111111, &idleTaskEnv[1024]);
+	tTaskInit(&tTask1, task1, (void *)0x22222222, &task1Env[1024]);
+	tTaskInit(&tTask2, task2, (void *)0x33333333, &task2Env[1024]);
+		
+	tTaskTable[0] = &tIdleTask;
+	tTaskTable[1] = &tTask1;
+	tTaskTable[2] = &tTask2;
 	nextTask = tTaskTable[0];
 	
 	tTaskRunFirst();
