@@ -2,31 +2,52 @@
 FileName:     main.c
 Author:       hewangxing
 Date:         2017/12/21
-Description:  定义任务的外观及初始化
-Version:      c2.01
+Description:  实现双任务的切换
+Version:      c2.02
 ***********************************************************/
-
 #include "tinyOS.h"
 
-#define	NVIC_INT_CTRL			0xE000Ed04 	// 中断控制及状态寄存器
-#define	NVIC_PENDSVSET		0x10000000 	// 触发软件中断的值
-#define	NVIC_SYSPRI2			0xE000ED22 	// 系统优先级寄存器
-#define	NVIC_PENDSV_PRI		0x000000FF	// 配置优先级
-
-#define MEM32(addr) (*(volatile unsigned long *)(addr))
-#define MEM8(addr)  (*(volatile unsigned char *)(addr))
-
-// 触发PendSV异常
-void triggerPendSVC(void)
-{
-	MEM8(NVIC_SYSPRI2) = NVIC_PENDSV_PRI;
-	MEM32(NVIC_INT_CTRL) = NVIC_PENDSVSET;
-}
+// 全局变量
+tTask *currentTask;     // 指向当前任务
+tTask *nextTask;        // 指向下一个任务
+tTask *tTaskTable[2];   // 任务表
 
 // 任务初始化
 void tTaskInit(tTask *task, void (*entry)(void *), void *param, tTaskStack *stack)
 {
+	*(--stack) = (unsigned long)(1 << 24);   // xPSR, Thumb状态
+	*(--stack) = (unsigned long)entry;       // PC, 函数入口
+	*(--stack) = (unsigned long)0x14;        // LR
+	*(--stack) = (unsigned long)0x12;           
+	*(--stack) = (unsigned long)0x3;
+	*(--stack) = (unsigned long)0x2;
+	*(--stack) = (unsigned long)0x1;
+	*(--stack) = (unsigned long)param;       // R0, 函数传参
+	
+	*(--stack) = (unsigned long)0x11;
+	*(--stack) = (unsigned long)0x10;
+	*(--stack) = (unsigned long)0x9;
+	*(--stack) = (unsigned long)0x8;
+	*(--stack) = (unsigned long)0x7;
+	*(--stack) = (unsigned long)0x6;
+	*(--stack) = (unsigned long)0x5;
+	*(--stack) = (unsigned long)0x4;
+	
 	task->stack = stack;
+}
+
+// 任务调度
+void tTaskSched(void)
+{
+		if (currentTask == tTaskTable[0])
+		{
+			nextTask = tTaskTable[1];
+		}
+		else
+		{
+			nextTask = tTaskTable[0];
+		}
+		tTaskSwitch();
 }
 
 // 软延时
@@ -35,21 +56,33 @@ void delay(int count)
 	while (--count);
 }
 
+int task1flag;
 // 任务1
 void task1(void *param)
 {
 	for (;;)
 	{
+		task1flag = 0;
+		delay(100);
+		task1flag = 1;
+		delay(100);
 		
+		tTaskSched();
 	}
 }
 
-//任务2
+int task2flag;
+// 任务2
 void task2(void *param)
-{
+{	
 	for (;;)
 	{
-
+		task2flag = 0;
+		delay(100);
+		task2flag = 1;
+		delay(100);
+		
+		tTaskSched();
 	}
 }
 
@@ -65,6 +98,12 @@ int main()
 {
 	tTaskInit(&tTask1, task1, (void *)0x11111111, &task1Env[1024]);
 	tTaskInit(&tTask2, task2, (void *)0x22222222, &task2Env[1024]);
+	
+	tTaskTable[0] = &tTask1;
+	tTaskTable[1] = &tTask2;
+	nextTask = tTaskTable[0];
+	
+	tTaskRunFirst();
 	
 	return 0;
 }
