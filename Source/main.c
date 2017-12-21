@@ -2,10 +2,12 @@
 FileName:     main.c
 Author:       hewangxing
 Date:         2017/12/21
-Description:  实现双任务的切换
-Version:      c2.02
+Description:  实现基于时间片的双任务的切换
+Version:      c2.03
 ***********************************************************/
+
 #include "tinyOS.h"
+#include "ARMCM3.h"
 
 // 全局变量
 tTask *currentTask;     // 指向当前任务
@@ -50,6 +52,23 @@ void tTaskSched(void)
 		tTaskSwitch();
 }
 
+// 通过SysTick来设置os的时间片
+void tSetSysTickPeriod(uint32_t ms)
+{
+	SysTick->LOAD = ms * SystemCoreClock / 1000 -1;
+	NVIC_SetPriority(SysTick_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+	SysTick->VAL = 0;
+	SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |
+									SysTick_CTRL_TICKINT_Msk |
+									SysTick_CTRL_ENABLE_Msk;
+}
+
+// SysTick异常处理函数
+void SysTick_Handler(void)
+{
+	tTaskSched();
+}
+
 // 软延时
 void delay(int count)
 {
@@ -60,14 +79,13 @@ int task1flag;
 // 任务1
 void task1(void *param)
 {
+	tSetSysTickPeriod(10);
 	for (;;)
 	{
 		task1flag = 0;
 		delay(100);
 		task1flag = 1;
 		delay(100);
-		
-		tTaskSched();
 	}
 }
 
@@ -81,8 +99,6 @@ void task2(void *param)
 		delay(100);
 		task2flag = 1;
 		delay(100);
-		
-		tTaskSched();
 	}
 }
 
