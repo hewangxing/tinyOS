@@ -28,4 +28,3 @@ __asm void PendSV_Handler(void)
 	BX LR
 	NOP
 }
-
